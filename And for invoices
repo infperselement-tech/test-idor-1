@@ -1,0 +1,1 @@
+cur.execute("SELECT * FROM invoices WHERE id = ? AND user_id = ?", (invoice_id, current_user_id))
