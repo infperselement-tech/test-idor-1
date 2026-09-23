@@ -1,0 +1,59 @@
+import sqlite3
+
+# FIXED VERSION - Secure against IDOR and SQL Injection
+# Project: test-idor-1
+# This file shows the secure implementation of vuln.py
+
+def get_user_safe(current_user_id, requested_id):
+    """
+    Secure function to get user data.
+    Prevents IDOR and SQL Injection.
+    """
+    conn = sqlite3.connect('app.db')
+    cur = conn.cursor()
+    
+    # FIX 1: Authorization Check - Prevents IDOR
+    # Verify that the logged-in user owns the requested resource
+    if current_user_id != requested_id:
+        # Optional: Allow admin role check here
+        # if not is_admin(current_user_id):
+        raise PermissionError("Unauthorized: IDOR prevented. You cannot access another user's data.")
+
+    # FIX 2: Prepared Statement - Prevents SQL Injection
+    # Use ? placeholder instead of f-string concatenation
+    # The database driver safely escapes the input
+    cur.execute("SELECT * FROM users WHERE id = ?", (requested_id,))
+    user = cur.fetchone()
+    conn.close()
+    return user
+
+def get_invoice_safe(current_user_id, invoice_id):
+    """
+    Secure function to get invoice data.
+    Prevents IDOR by checking ownership.
+    """
+    conn = sqlite3.connect('app.db')
+    cur = conn.cursor()
+    
+    # FIX: Combined protection
+    # 1. Prepared statement with placeholders
+    # 2. Ownership check: invoice must belong to current_user_id
+    cur.execute(
+        "SELECT * FROM invoices WHERE id = ? AND user_id = ?", 
+        (invoice_id, current_user_id)
+    )
+    invoice = cur.fetchone()
+    conn.close()
+    
+    if not invoice:
+        raise PermissionError("Invoice not found or does not belong to you - IDOR prevented")
+    
+    return invoice
+
+# Example of secure usage:
+# current_user = 5  # User logged in as ID 5
+# try:
+#     data = get_user_safe(current_user_id=5, requested_id=5)  # OK
+#     data = get_user_safe(current_user_id=5, requested_id=1)  # Raises PermissionError - Blocked!
+# except PermissionError as e:
+#     print(e)
