@@ -1,0 +1,47 @@
+# Security Vulnerability Report - IDOR + SQL Injection
+
+**Project:** test-idor-1
+**Scanning Tool:** Aikido Security - SAST
+**Vulnerable File:** vuln.py
+**Severity:** Critical 95/100 - Easily Exploitable
+
+## 1. Vulnerability Summary
+Aikido SAST detected 2 Critical issues in vuln.py:
+
+- Line 9: cur.execute(f"SELECT * FROM users WHERE id = {id}")
+- Line 17: cur.execute(f"SELECT * FROM invoices WHERE id = {invoice_id}")
+
+Finding: Potential SQL injection via string-based query concatenation
+Status: AI assessed SAST finding to be easily exploitable
+
+## 2. Technical Details - IDOR + SQLi
+
+This vulnerability is both IDOR and SQL Injection:
+
+**IDOR Example:**
+- User is logged in as ID 5: GET /profile?id=5
+- Attacker changes URL to: GET /profile?id=1
+- Server returns data of user 1 without checking ownership
+- Result: Unauthorized access to other users' data
+
+**SQL Injection Example:**
+- GET /profile?id=1 OR 1=1--  => Returns all users
+- GET /profile?id=1; DROP TABLE users;-- => Deletes table
+
+Root cause: Direct concatenation of user input into SQL query using f-string, without authorization check.
+
+## 3. Evidence from Scanner
+- Aikido Code Scans: SAST - completed
+- Total Issues: 2
+- Evidence 1: Screenshot showing "95 Critical - Potential SQL injection"
+- Evidence 2: Screenshot showing "Subissues: vuln.py Line 9 and Line 17"
+- Evidence 3: Video showing Aikido detail view with "View Detail"
+
+## 4. Remediation - Fixed Code
+
+File vuln_fixed.py was created with two fixes:
+
+Fix 1 - Prevent IDOR (Authorization Check):
+```python
+if current_user_id != requested_id:
+    raise PermissionError("Unauthorized")
